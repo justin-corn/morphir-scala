@@ -4,7 +4,6 @@ import org.finos.morphir.extensibility.SdkModuleDescriptor
 import org.finos.morphir.naming._
 import org.finos.morphir.runtime.internal.NativeFunctionAdapter
 import org.finos.morphir.runtime.sdk._
-import org.finos.morphir.runtime.sdk.ListSDK
 import org.finos.morphir.{Hints, ModuleDescriptor, MorphirTag, naming}
 
 object NativeSDK {
@@ -154,6 +153,12 @@ object NativeSDK {
           NativeFunctionAdapter.Fun2(DictSDK.remove)
         )
       }
+
+      case object Set extends SdkModuleDescriptor(moduleName = "Set") {
+        val functions: List[NativeFunctionAdapter] = scala.List(
+          NativeFunctionAdapter.Fun3(SetSDK.foldr)
+        )
+      }
     }
   }
 
@@ -167,6 +172,7 @@ object NativeSDK {
       LocalTime,
       Maybe,
       Result,
+      Set,
       String
     )
   }

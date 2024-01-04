@@ -47,6 +47,9 @@ object EvaluatorMDMTests extends MorphirBaseSpec {
       case map: Map[_, _] =>
         val pairs = map.toList.map { case (key, value) => (deriveData(key), deriveData(value)) }
         Data.Map(pairs.head, pairs.tail: _*)
+      case set: Set[_] =>
+        val derivedElements = set.toList.map(deriveData(_))
+        Data.Set(derivedElements.head, derivedElements.tail: _*)
       case Some(a: Any)           => Data.Optional.Some(deriveData(a))
       case (first, second)        => Data.Tuple(deriveData(first), deriveData(second))
       case (first, second, third) => Data.Tuple(deriveData(first), deriveData(second), deriveData(third))
@@ -1131,7 +1134,26 @@ object EvaluatorMDMTests extends MorphirBaseSpec {
         )),
         testEvaluation("member")("setTests", "setMemberTest1")(Data.Boolean(true)),
         testEvaluation("member")("setTests", "setMemberTest2")(Data.Boolean(false)),
-        testEvaluation("size")("setTests", "setSizeTest")(Data.Int(3))
+        testEvaluation("size")("setTests", "setSizeTest")(Data.Int(3)),
+        suite("foldr")(
+          testEval("folds left")("setTests", "setFoldrTest", Set(1, 2, 3))(
+            Data.List(
+              Data.Int(1),
+              Data.Int(2),
+              Data.Int(3)
+            )
+          ),
+          testEval("iterates in desc sort order, not insertion order")("setTests", "setFoldrTest", Set(2, 1, 3))(
+            Data.List(
+              Data.Int(1),
+              Data.Int(2),
+              Data.Int(3)
+            )
+          ) @@ ignore @@ tag("foldr does not match morphir-elm iteration order"),
+          testEval("folds empty lists")("setTests", "setFoldrTest", Data.Set.empty(Concept.Int32))(
+            Data.List.empty(Concept.Int32)
+          )
+        )
       ),
       suite("Simple")(
         testEvaluation("Unit")("simpleTests", "simpleUnitTest")(Data.Unit)

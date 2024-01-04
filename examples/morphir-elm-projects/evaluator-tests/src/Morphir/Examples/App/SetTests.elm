@@ -47,3 +47,13 @@ setSizeTest : TestContext -> Int
 setSizeTest ctx =
     test ctx
         (size (Set.fromList [ 0, 1, 2 ]))
+
+
+{-| Test: Set/foldr
+expected(Set(1, 2, 3)) = [1, 2, 3]
+expected(Set(2, 3, 1)) = [1, 2, 3] // Set.foldr iterates in order from highest to lowest
+expected(Set()) = []
+-}
+setFoldrTest : Set Int -> List Int
+setFoldrTest set =
+    Set.foldr (\x acc -> x :: acc) [] set
