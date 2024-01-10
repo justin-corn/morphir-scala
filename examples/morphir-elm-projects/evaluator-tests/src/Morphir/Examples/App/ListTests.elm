@@ -356,3 +356,30 @@ expected(2, []) = []
 listTakeTest : Int -> List a -> List a
 listTakeTest n list =
     List.take n list
+
+
+{-| Test: List/maximum
+expected([1, 2, 3]) = Just 3
+expected([]) = Nothing
+-}
+listMaximumTest : List Int -> Maybe Int
+listMaximumTest list =
+    List.maximum list
+
+
+{-| Test: List/minimum
+expected([1, 2, 3]) = Just 1
+expected([]) = Nothing
+-}
+listMinimumTest : List Int -> Maybe Int
+listMinimumTest list =
+    List.minimum list
+
+
+{-| Test: List/sort
+expected([2, 4, 1, 5, 3]) = [1, 2, 3, 4, 5]
+expected([]) = []
+-}
+listSortTest : List Int -> List Int
+listSortTest list =
+    List.sort list

@@ -153,11 +153,11 @@ object ListSDK {
 
   val filterMap = DynamicNativeFunction2("filterMap") {
     (context: NativeContext) => (f: RTValue.Function, list: RTValue.List) =>
-      val out = list.elements.map { elem =>
+      val out = list.elements.flatMap { elem =>
         val maybeOutputRaw = context.evaluator.handleApplyResult(Type.UType.Unit(()), f, elem)
         val maybeOutputCr  = RTValue.coerceConstructorResult(maybeOutputRaw)
         MaybeSDK.eitherToOption(maybeOutputCr)
-      }.flatten
+      }
       RTValue.List(out)
   }
 
@@ -174,12 +174,12 @@ object ListSDK {
   }
 
   val member = DynamicNativeFunction2("member") {
-    (context: NativeContext) => (value: RTValue, list: RTValue.List) =>
+    (_: NativeContext) => (value: RTValue, list: RTValue.List) =>
       RTValue.Primitive.Boolean(list.elements.contains(value))
   }
 
   val range = DynamicNativeFunction2("range") {
-    (context: NativeContext) => (fromInclusiveArg: RTValue.Primitive.Int, toInclusiveArg: RTValue.Primitive.Int) =>
+    (_: NativeContext) => (fromInclusiveArg: RTValue.Primitive.Int, toInclusiveArg: RTValue.Primitive.Int) =>
       val fromInclusive: Int = fromInclusiveArg.value.toInt
       val toInclusive: Int   = toInclusiveArg.value.toInt
       val scalaRange         = fromInclusive to toInclusive
@@ -187,26 +187,78 @@ object ListSDK {
   }
 
   val repeat = DynamicNativeFunction2("repeat") {
-    (context: NativeContext) => (countArg: RTValue.Primitive.Int, elem: RTValue) =>
+    (_: NativeContext) => (countArg: RTValue.Primitive.Int, elem: RTValue) =>
       RTValue.List(List.fill(countArg.value.toInt)(elem))
   }
 
   val reverse = DynamicNativeFunction1("reverse") {
-    (context: NativeContext) => (list: RTValue.List) => RTValue.List(list.elements.reverse)
+    (_: NativeContext) => (list: RTValue.List) => RTValue.List(list.elements.reverse)
   }
 
   // The Elm implementation of tail is non-standard: it returns a `Maybe (List a)` with
   // the tail of an empty list returning Nothing.
   val tail = DynamicNativeFunction1("tail") {
-    (context: NativeContext) => (list: RTValue.List) =>
+    (_: NativeContext) => (list: RTValue.List) =>
       val result = if (list.elements.isEmpty) None else Some(RTValue.List(list.elements.tail))
       MaybeSDK.resultToMaybe(result)
   }
 
   val take = DynamicNativeFunction2("take") {
-    (context: NativeContext) => (countArg: RTValue.Primitive.Int, listArg: RTValue.List) =>
+    (_: NativeContext) => (countArg: RTValue.Primitive.Int, listArg: RTValue.List) =>
       val count  = countArg.value.toInt
       val result = listArg.elements.take(count)
       RTValue.List(result)
+  }
+
+  // Does an unsafe cast to Comparable.  Don't use unless you know morphir-elm will have guaranteed a comparable.
+  // This Ordering is defined on RTValue (instead of RTValue.Comparable) in order to avoid call sites having to use
+  // `.coerceComparable` and then `.asInstanceOf[RTValue]` after comparison.
+  private val unsafeRTValueOrd = new Ordering[RTValue] {
+    def compare(a: RTValue, b: RTValue) = a.coerceComparable.compare(b.coerceComparable)
+  }
+
+  val maximum = DynamicNativeFunction1("maximum") {
+    (_: NativeContext) => (listArg: RTValue.List) =>
+      val result = listArg.elements match {
+        case Nil => None
+        case head :: rest => Some(rest.foldLeft(head)(unsafeRTValueOrd.max))
+      }
+
+      MaybeSDK.resultToMaybe(result)
+  }
+
+  val minimum = DynamicNativeFunction1("minimum") {
+    (_: NativeContext) => (listArg: RTValue.List) =>
+      val result = listArg.elements match {
+        case Nil => None
+        case head :: rest => Some(rest.foldLeft(head)(unsafeRTValueOrd.min))
+      }
+
+      MaybeSDK.resultToMaybe(result)
+  }
+
+  val sort = DynamicNativeFunction1("sort") {
+    (_: NativeContext) => (listArg: RTValue.List) => RTValue.List(listArg.elements.sorted(unsafeRTValueOrd))
+  }
+
+  val sortBy = DynamicNativeFunction2("sortBy") {
+    (context: NativeContext) => (toComp: RTValue.Function, listArg: RTValue.List) =>
+      val sorted = listArg.elements.sortBy(elem =>
+        context.evaluator.handleApplyResult(Type.UType.Unit(()), toComp, elem)
+      )(unsafeRTValueOrd)
+
+      RTValue.List(sorted)
+  }
+
+  val sortWith = DynamicNativeFunction2("sortWith") {
+    (context: NativeContext) => (compareArg: RTValue.Function, listArg: RTValue.List) =>
+      val ord = new Ordering[RTValue] {
+        def compare(a: RTValue, b: RTValue) = {
+          val ordering = context.evaluator.handleApplyResult2(Type.UType.Unit(()), compareArg, a, b)
+          RTValue.Comparable.orderToInt(ordering)
+        }
+      }
+
+      RTValue.List(listArg.elements.sorted(ord))
   }
 }
